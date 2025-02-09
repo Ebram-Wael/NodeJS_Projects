@@ -1,49 +1,70 @@
-let courses = require("../data/courses");
-let getAllCourses = (req, res) => {
-  res.json(courses);
+const Courses = require("../model/course.model");
+const mongoose = require("mongoose");
+const getAllCourses = async (req, res) => {
+  try {
+    const courses = await Courses.find();
+    res.status(200).json(courses);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error retrieving courses" });
+  }
 };
-const getCourse = (req, res) => {
-  const id = parseInt(req.params.id);
-  const course = courses.find((c) => c.id === id);
-  if (!course)
-    return res.status(404).send("The course with the given ID was not found");
+const getCourse = async (req, res) => {
+  const courseId = parseInt(req.params.id, 10);
+  const course = await Courses.findById(courseId);
+
+  if (!course) {
+    return res.status(404).send("Course not found");
+  }
+
   res.status(200).json(course);
 };
-const createCourse = (req, res) => {
-  console.log(req.body);
-  const { title, description, price } = req.body;
+const createCourse = async (req, res) => {
+  let { title, description, price } = req.body;
 
   if (!title || !description || !price) {
-    return res.status(400).send("All fields are required.");
+    return res.status(400).json({ message: "All fields are required." });
   }
 
-  const newCourse = {
-    id: courses.length + 1,
-    title,
-    description,
-    price,
-  };
-
-  courses.push(newCourse);
-  res.status(201).json(newCourse);
-};
-const updateCourse = (req, res) => {
-  const courseId = parseInt(req.params.id);
-  const course = courses.find((c) => c.id === courseId);
-  if (!course)
-    return res.status(404).send("The course with the given ID was not found");
-  const index = courses.indexOf(course);
-  courses[index] = { ...course, ...req.body };
-  res.status(200).json(course);
-};
-const deleteCourse = (req, res) => {
-  const courseId = parseInt(req.params.id);
-  const courseIndex = courses.findIndex((c) => c.id === courseId);
-  if (courseIndex === -1) {
-    return res.status(404).send("The course with the given ID was not found.");
+  try {
+    const newCourse = new Courses({ title, description, price });
+    await newCourse.save();
+    res.status(201).json(newCourse);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error creating course" });
   }
-  courses.splice(courseIndex, 1);
-  res.status(200).send(`Course with ID ${courseId} deleted successfully.`);
+};
+const updateCourse = async (req, res) => {
+  const courseId = req.params.id;
+
+  try {
+    const updatedCourse = await Courses.findByIdAndUpdate(courseId, req.body, {
+      new: true,
+    });
+
+    if (!updatedCourse) {
+      return res.status(404).send("Course not found");
+    }
+
+    res.status(200).json(updatedCourse);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error updating course" });
+  }
+};
+const deleteCourse = async (req, res) => {
+  const courseId = req.params.id;
+  try {
+    const course = await Courses.findByIdAndDelete(courseId);
+    if (!course) {
+      return res.status(404).send("Course not found");
+    }
+    res.status(200).send("Course deleted successfully");
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error deleting course" });
+  }
 };
 
 module.exports = {
